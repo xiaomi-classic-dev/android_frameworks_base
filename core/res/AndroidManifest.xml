@@ -9353,6 +9353,10 @@
                  android:permission="android.permission.BIND_JOB_SERVICE">
         </service>
 
+        <service android:name="com.android.server.appsearch.AppSearchMaintenanceService"
+                 android:permission="android.permission.BIND_JOB_SERVICE">
+        </service>
+
         <service android:name="com.android.server.appsearch.contactsindexer.ContactsIndexerMaintenanceService"
                  android:permission="android.permission.BIND_JOB_SERVICE">
         </service>
