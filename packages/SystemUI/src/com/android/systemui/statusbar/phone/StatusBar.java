@@ -2907,7 +2907,7 @@ public class StatusBar extends SystemUI implements DemoMode,
         final boolean afterKeyguardGone = mActivityIntentHelper.wouldLaunchResolverActivity(
                 intent, mLockscreenUserManager.getCurrentUserId());
         Runnable runnable = () -> {
-            mAssistManagerLazy.get().hideAssist();
+            postOnUiThread(() -> mAssistManagerLazy.get().hideAssist());
             intent.setFlags(
                     Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP);
             intent.addFlags(flags);
@@ -4517,7 +4517,7 @@ public class StatusBar extends SystemUI implements DemoMode,
                 // TODO: Dismiss Keyguard.
             }
             if (intent.isActivity()) {
-                mAssistManagerLazy.get().hideAssist();
+                postOnUiThread(() -> mAssistManagerLazy.get().hideAssist());
             }
             if (intentSentUiThreadCallback != null) {
                 postOnUiThread(intentSentUiThreadCallback);
