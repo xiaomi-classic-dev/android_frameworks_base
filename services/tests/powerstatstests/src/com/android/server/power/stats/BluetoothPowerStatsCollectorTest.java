@@ -235,6 +235,24 @@ public class BluetoothPowerStatsCollectorTest {
     }
 
     @Test
+    public void ignoreProfileServiceNotBoundError() {
+        when(mConsumedEnergyRetriever.getEnergyConsumerIds(EnergyConsumerType.BLUETOOTH))
+                .thenReturn(new int[0]);
+
+        mBluetoothActivityEnergyInfoError = BluetoothStatusCodes.ERROR_PROFILE_SERVICE_NOT_BOUND;
+
+        BluetoothPowerStatsCollector collector = new BluetoothPowerStatsCollector(mInjector);
+        collector.setEnabled(true);
+
+        PowerStats powerStats = collector.collectStats();
+        BluetoothPowerStatsLayout layout = new BluetoothPowerStatsLayout(powerStats.descriptor);
+
+        assertThat(layout.getDeviceRxTime(powerStats.stats)).isEqualTo(0);
+        assertThat(layout.getDeviceTxTime(powerStats.stats)).isEqualTo(0);
+        assertThat(layout.getDeviceIdleTime(powerStats.stats)).isEqualTo(0);
+    }
+
+    @Test
     public void dump() throws Throwable {
         PowerStats powerStats = collectPowerStats();
         StringWriter sw = new StringWriter();
