@@ -3890,6 +3890,11 @@ public class TelephonyRegistry extends ITelephonyRegistry.Stub {
 
         synchronized (mRecords) {
             int phoneId = getPhoneIdFromSubId(subId);
+            if (!validatePhoneId(phoneId)
+                    || phoneId >= mCarrierRoamingNtnSignalStrength.length) {
+                log("notifyCarrierRoamingNtnSignalStrengthChanged: invalid phone id=" + phoneId);
+                return;
+            }
             mCarrierRoamingNtnSignalStrength[phoneId] = ntnSignalStrength;
             for (Record r : mRecords) {
                 if (r.matchTelephonyCallbackEvent(
