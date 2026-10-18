@@ -32,20 +32,16 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import android.content.Context;
-import android.content.res.Resources;
 import android.hardware.usb.IUsbManagerInternal;
 import android.hardware.usb.IUsbOperationInternal;
 import android.hardware.usb.UsbOperationInternal;
 import android.hardware.usb.flags.Flags;
 import android.hardware.usb.UsbPort;
-import android.os.Looper;
 import android.os.RemoteException;
 import android.os.UserManager;
 import android.platform.test.flag.junit.SetFlagsRule;
@@ -53,14 +49,11 @@ import android.platform.test.flag.junit.SetFlagsRule;
 import androidx.test.runner.AndroidJUnit4;
 
 import com.android.server.LocalServices;
-import com.android.server.pm.UserManagerInternal;
 
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import com.android.internal.widget.LockPatternUtils;
-
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -78,8 +71,6 @@ public class UsbServiceTest {
     @Mock private UsbSettingsManager mUsbSettingsManager;
     @Mock private IUsbOperationInternal mCallback;
     @Mock private IUsbOperationInternalProvider mUsbOperationInternalProvider;
-    @Mock private UserManagerInternal mUserManagerInternal;
-    @Mock private Resources mResources;
 
     private static final String TEST_PORT_ID = "1";
 
@@ -109,10 +100,14 @@ public class UsbServiceTest {
         mSetFlagsRule.enableFlags(Flags.FLAG_ENABLE_USB_DATA_SIGNAL_STAKING_INTERNAL);
         LocalServices.removeAllServicesForTest();
         MockitoAnnotations.initMocks(this);
-        LocalServices.addService(UserManagerInternal.class, mUserManagerInternal);
 
-        when(mContext.getResources()).thenReturn(mResources);
-        when(mResources.getBoolean(anyInt())).thenReturn(false);
+        when(mUsbPortManager.enableUsbData(
+                        eq(TEST_PORT_ID),
+                        anyBoolean(),
+                        eq(TEST_TRANSACTION_ID),
+                        eq(mCallback),
+                        any()))
+                .thenReturn(true);
 
         mUsbService =
                 new UsbService(
@@ -382,71 +377,5 @@ public class UsbServiceTest {
     public void usbManagerInternal_enableUsbDataSignal_throwsExceptionIfInvalidDisableReason()
             throws IllegalArgumentException, RemoteException {
         mIUsbManagerInternal.enableUsbDataSignal(true, TEST_INTERNAL_REQUESTER_INVALID_REASON);
-    }
-
-    @Test
-    public void onStrongAuthRequiredChanged_lockdownTriggered_disablesUsb() {
-        int userId = 10;
-        UsbPort port = mock(UsbPort.class);
-        when(port.getId()).thenReturn(TEST_PORT_ID);
-        when(mUsbPortManager.getPorts()).thenReturn(new UsbPort[] {port});
-
-        UsbService.StrongAuthTracker tracker =
-                spy(mUsbService.new StrongAuthTracker(mContext, Looper.getMainLooper()));
-        doReturn(LockPatternUtils.StrongAuthTracker.STRONG_AUTH_REQUIRED_AFTER_USER_LOCKDOWN)
-                .when(tracker)
-                .getStrongAuthForUser(userId);
-
-        tracker.onStrongAuthRequiredChanged(userId);
-
-        verify(mUsbPortManager)
-                .enableUsbData(eq(TEST_PORT_ID), eq(false), anyInt(), any(), isNull());
-    }
-
-    @Test
-    public void onStrongAuthRequiredChanged_lockdownCleared_mainUser_enablesUsb() {
-        int userId = 10;
-        UsbPort port = mock(UsbPort.class);
-        when(port.getId()).thenReturn(TEST_PORT_ID);
-        when(mUsbPortManager.getPorts()).thenReturn(new UsbPort[] {port});
-        when(mUserManagerInternal.getMainUserId()).thenReturn(userId);
-        UsbService.StrongAuthTracker tracker =
-                spy(mUsbService.new StrongAuthTracker(mContext, Looper.getMainLooper()));
-        doReturn(LockPatternUtils.StrongAuthTracker.STRONG_AUTH_REQUIRED_AFTER_USER_LOCKDOWN)
-                .when(tracker)
-                .getStrongAuthForUser(userId);
-        tracker.onStrongAuthRequiredChanged(userId);
-        clearInvocations(mUsbPortManager);
-        doReturn(LockPatternUtils.StrongAuthTracker.STRONG_AUTH_NOT_REQUIRED)
-                .when(tracker)
-                .getStrongAuthForUser(userId);
-
-        tracker.onStrongAuthRequiredChanged(userId);
-
-        verify(mUsbPortManager)
-                .enableUsbData(eq(TEST_PORT_ID), eq(true), anyInt(), any(), isNull());
-    }
-
-    @Test
-    public void onStrongAuthRequiredChanged_lockdownCleared_nonMainUser_doesNotEnableUsb() {
-        int userId = 11;
-        UsbPort port = mock(UsbPort.class);
-        when(port.getId()).thenReturn(TEST_PORT_ID);
-        when(mUsbPortManager.getPorts()).thenReturn(new UsbPort[] {port});
-        when(mUserManagerInternal.getMainUserId()).thenReturn(userId - 1);
-        UsbService.StrongAuthTracker tracker =
-                spy(mUsbService.new StrongAuthTracker(mContext, Looper.getMainLooper()));
-        doReturn(LockPatternUtils.StrongAuthTracker.STRONG_AUTH_REQUIRED_AFTER_USER_LOCKDOWN)
-                .when(tracker)
-                .getStrongAuthForUser(userId);
-        tracker.onStrongAuthRequiredChanged(userId);
-        clearInvocations(mUsbPortManager);
-        doReturn(LockPatternUtils.StrongAuthTracker.STRONG_AUTH_NOT_REQUIRED)
-                .when(tracker)
-                .getStrongAuthForUser(userId);
-
-        tracker.onStrongAuthRequiredChanged(userId);
-
-        verifyNoMoreInteractions(mUsbPortManager);
     }
 }

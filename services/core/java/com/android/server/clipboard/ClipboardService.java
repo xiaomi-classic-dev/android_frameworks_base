@@ -570,9 +570,8 @@ public class ClipboardService extends SystemService {
             try {
                 ContentResolver resolver = getContext()
                         .createContextAsUser(UserHandle.of(userId), 0).getContentResolver();
-                Settings.Secure.putIntForUser(resolver,
-                        Settings.Secure.CLIPBOARD_SHOW_ACCESS_NOTIFICATIONS, (enable ? 1 : 0),
-                        userId);
+                Settings.Secure.putInt(resolver,
+                        Settings.Secure.CLIPBOARD_SHOW_ACCESS_NOTIFICATIONS, (enable ? 1 : 0));
             } finally {
                 Binder.restoreCallingIdentity(callingId);
             }
@@ -1500,9 +1499,9 @@ public class ClipboardService extends SystemService {
         if (shouldSuppressAccessNotificationForUidLocked(uid)) {
             return;
         }
-        if (Settings.Secure.getIntForUser(getContext().getContentResolver(),
+        if (Settings.Secure.getInt(getContext().getContentResolver(),
                 Settings.Secure.CLIPBOARD_SHOW_ACCESS_NOTIFICATIONS,
-                (mShowAccessNotifications ? 1 : 0), userId) == 0) {
+                (mShowAccessNotifications ? 1 : 0)) == 0) {
             return;
         }
         // Don't notify if the app accessing the clipboard is the same as the current owner.

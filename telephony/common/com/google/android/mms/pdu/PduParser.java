@@ -53,16 +53,6 @@ public class PduParser {
      */
     private static final int THE_FIRST_PART = 0;
     private static final int THE_LAST_PART = 1;
-    /**
-     * Maximum nesting depth allowed when parsing recursive multipart parts.
-     * Prevents malicious payloads from causing a StackOverflowError.
-     * Value 30 is chosen because real-world MMS nesting depth is typically
-     * less than 5, leaving a safe margin while avoiding stack exhaustions.
-     * Android background thread stacks are limited (256KB-512KB). A recursion
-     * depth of 30 prevents crashes from StackOverflowError.
-     */
-    private static final int MAX_PARSING_DEPTH = 30;
-
 
     /**
      * The pdu data.
@@ -846,15 +836,7 @@ public class PduParser {
      * @return parts in PduBody structure
      */
     protected PduBody parseParts(ByteArrayInputStream pduDataStream) {
-        return parseParts(pduDataStream, 0);
-    }
-
-    private PduBody parseParts(ByteArrayInputStream pduDataStream, int depth) {
         if (pduDataStream == null) {
-            return null;
-        }
-        if (depth > MAX_PARSING_DEPTH) {
-            Log.e(LOG_TAG, "parseParts: recursion depth limit exceeded (depth: " + depth + ")");
             return null;
         }
 
@@ -918,24 +900,12 @@ public class PduParser {
 
             /* get part's data */
             if (dataLength > 0) {
-                // Ensure the declared data length does not exceed actual available stream bytes.
-                // Prevents OutOfMemoryError allocations or ArrayIndexOutOfBoundsException.
-                if (dataLength > pduDataStream.available()) {
-                    Log.e(LOG_TAG, "parseParts: dataLength " + dataLength
-                            + " exceeds available stream bytes: " + pduDataStream.available());
-                    return null;
-                }
                 byte[] partData = new byte[dataLength];
                 String partContentType = new String(part.getContentType());
                 pduDataStream.read(partData, 0, dataLength);
                 if (partContentType.equalsIgnoreCase(ContentType.MULTIPART_ALTERNATIVE)) {
                     // parse "multipart/vnd.wap.multipart.alternative".
-                    PduBody childBody = parseParts(new ByteArrayInputStream(partData), depth + 1);
-                    if (childBody == null || childBody.getPartsNum() == 0) {
-                        Log.e(LOG_TAG, "parseParts: nested multipart alternative "
-                                + "parsing failed or empty");
-                        return null;
-                    }
+                    PduBody childBody = parseParts(new ByteArrayInputStream(partData));
                     // take the first part of children.
                     part = childBody.getPart(0);
                 } else {
@@ -1726,11 +1696,8 @@ public class PduParser {
                             } else {
                                 pduDataStream.reset();
                                 /* Token-text */
-                                byte[] contentDisposition = parseWapString(pduDataStream
-                                        , TYPE_TEXT_STRING);
-                                if (null != contentDisposition) {
-                                    part.setContentDisposition(contentDisposition);
-                                }
+                                part.setContentDisposition(parseWapString(pduDataStream
+                                        , TYPE_TEXT_STRING));
                             }
 
                             /* get filename parameter and skip other parameters */
@@ -1738,11 +1705,8 @@ public class PduParser {
                             if (thisStartPos - thisEndPos < len) {
                                 value = pduDataStream.read();
                                 if (value == PduPart.P_FILENAME) { //filename is text-string
-                                    byte[] filename = parseWapString(pduDataStream
-                                            , TYPE_TEXT_STRING);
-                                    if (null != filename) {
-                                        part.setFilename(filename);
-                                    }
+                                    part.setFilename(parseWapString(pduDataStream
+                                            , TYPE_TEXT_STRING));
                                 }
 
                                 /* skip other parameters */
@@ -1775,7 +1739,7 @@ public class PduParser {
                 byte[] tempValue = parseWapString(pduDataStream, TYPE_TEXT_STRING);
 
                 // Check the header whether it is "Content-Transfer-Encoding".
-                if (null != tempHeader && null != tempValue &&
+                if (true ==
                     PduPart.CONTENT_TRANSFER_ENCODING.equalsIgnoreCase(new String(tempHeader))) {
                     part.setContentTransferEncoding(tempValue);
                 }

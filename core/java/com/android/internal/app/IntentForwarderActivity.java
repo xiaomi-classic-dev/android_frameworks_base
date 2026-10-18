@@ -129,7 +129,7 @@ public class IntentForwarderActivity extends Activity  {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         mInjector = createInjector();
-        mExecutorService = mInjector.getExecutorService();
+        mExecutorService = Executors.newSingleThreadExecutor();
 
         Intent intentReceived = getIntent();
         String className = intentReceived.getComponent().getClassName();
@@ -340,7 +340,6 @@ public class IntentForwarderActivity extends Activity  {
             String resolverTitle, PackageManager pmForTargetUser) {
         int layoutId = R.layout.miniresolver;
         setContentView(layoutId);
-        getWindow().setHideOverlayWindows(true);
 
         findViewById(R.id.title_container).setElevation(0);
 
@@ -529,6 +528,9 @@ public class IntentForwarderActivity extends Activity  {
                 ? targetUserId : callingUserId;
         int selectedProfile = findSelectedProfile(className);
         sanitizeIntent(intentReceived);
+        if (intentReceived.getSelector() != null) {
+            sanitizeIntent(intentReceived.getSelector());
+        }
         intentReceived.putExtra(EXTRA_SELECTED_PROFILE, selectedProfile);
         intentReceived.putExtra(EXTRA_CALLING_USER, UserHandle.of(callingUserId));
         if (singleTabOnly) {
@@ -563,7 +565,8 @@ public class IntentForwarderActivity extends Activity  {
     }
 
     private boolean isDeviceProvisioned() {
-        return mInjector.isDeviceProvisioned();
+        return Settings.Global.getInt(getContentResolver(),
+                Settings.Global.DEVICE_PROVISIONED, /* def= */ 0) != 0;
     }
 
     private boolean isTextMessageIntent(Intent intent) {
@@ -608,6 +611,7 @@ public class IntentForwarderActivity extends Activity  {
             return null;
         }
         if (forwardIntent.getSelector() != null) {
+            sanitizeIntent(forwardIntent.getSelector());
             if (!canForwardInner(forwardIntent.getSelector(), sourceUserId, targetUserId,
                     packageManager, resolvedType)) {
                 return null;
@@ -674,19 +678,12 @@ public class IntentForwarderActivity extends Activity  {
     }
 
     /**
-     * Sanitize the intent and sanitize its selector in place.
+     * Sanitize the intent in place.
      */
     private static void sanitizeIntent(Intent intent) {
         // Apps should not be allowed to target a specific package/ component in the target user.
         intent.setPackage(null);
         intent.setComponent(null);
-
-        var selector = intent.getSelector();
-        if (selector != null) {
-            selector.setPackage(null);
-            selector.setComponent(null);
-            selector.setSelector(null);
-        }
     }
 
     protected MetricsLogger getMetricsLogger() {
@@ -763,17 +760,6 @@ public class IntentForwarderActivity extends Activity  {
         public void showToast(String message, int duration) {
             Toast.makeText(IntentForwarderActivity.this, message, duration).show();
         }
-
-        @Override
-        public ExecutorService getExecutorService() {
-            return Executors.newSingleThreadExecutor();
-        }
-
-        @Override
-        public boolean isDeviceProvisioned() {
-            return Settings.Global.getInt(getContentResolver(),
-                    Settings.Global.DEVICE_PROVISIONED, /* def= */ 0) != 0;
-        }
     }
 
     public interface Injector {
@@ -789,9 +775,5 @@ public class IntentForwarderActivity extends Activity  {
         CompletableFuture<ResolveInfo> resolveActivityAsUser(Intent intent, int flags, int userId);
 
         void showToast(String message, int duration);
-
-        ExecutorService getExecutorService();
-
-        boolean isDeviceProvisioned();
     }
 }

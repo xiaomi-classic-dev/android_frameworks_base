@@ -24,6 +24,7 @@ import static org.mockito.Mockito.when;
 import android.app.ActivityManager;
 import android.bluetooth.BluetoothActivityEnergyInfo;
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothStatusCodes;
 import android.bluetooth.UidTraffic;
 import android.content.Context;
 import android.content.pm.PackageManager;
@@ -73,6 +74,7 @@ public class BluetoothPowerStatsCollectorTest {
     private final PowerStatsUidResolver mPowerStatsUidResolver = new PowerStatsUidResolver();
 
     private BluetoothActivityEnergyInfo mBluetoothActivityEnergyInfo;
+    private int mBluetoothActivityEnergyInfoError = 0;
     private final SparseLongArray mUidScanTimes = new SparseLongArray();
 
     private final BluetoothPowerStatsCollector.BluetoothStatsRetriever mBluetoothStatsRetriever =
@@ -88,6 +90,10 @@ public class BluetoothPowerStatsCollectorTest {
                 @Override
                 public boolean requestControllerActivityEnergyInfo(Executor executor,
                         BluetoothAdapter.OnBluetoothActivityEnergyInfoCallback callback) {
+                    if (mBluetoothActivityEnergyInfoError != 0) {
+                        callback.onBluetoothActivityEnergyInfoError(mBluetoothActivityEnergyInfoError);
+                        return true;
+                    }
                     callback.onBluetoothActivityEnergyInfoAvailable(mBluetoothActivityEnergyInfo);
                     return true;
                 }
@@ -202,6 +208,34 @@ public class BluetoothPowerStatsCollectorTest {
         assertThat(layout.getUidScanTime(actual2)).isEqualTo(700);
 
         assertThat(powerStats.uidStats.get(ISOLATED_UID)).isNull();
+    }
+
+    @Test
+    public void ignoreFeatureNotSupportedError() {
+        when(mConsumedEnergyRetriever.getEnergyConsumerIds(EnergyConsumerType.BLUETOOTH))
+                .thenReturn(new int[0]);
+        mBluetoothActivityEnergyInfoError = BluetoothStatusCodes.FEATURE_NOT_SUPPORTED;
+        BluetoothPowerStatsCollector collector = new BluetoothPowerStatsCollector(mInjector, null);
+        collector.setEnabled(true);
+        PowerStats powerStats = collector.collectStats();
+        BluetoothPowerStatsLayout layout = new BluetoothPowerStatsLayout(powerStats.descriptor);
+        assertThat(layout.getDeviceRxTime(powerStats.stats)).isEqualTo(0);
+        assertThat(layout.getDeviceTxTime(powerStats.stats)).isEqualTo(0);
+        assertThat(layout.getDeviceIdleTime(powerStats.stats)).isEqualTo(0);
+    }
+
+    @Test
+    public void ignoreProfileServiceNotBoundError() {
+        when(mConsumedEnergyRetriever.getEnergyConsumerIds(EnergyConsumerType.BLUETOOTH))
+                .thenReturn(new int[0]);
+        mBluetoothActivityEnergyInfoError = BluetoothStatusCodes.ERROR_PROFILE_SERVICE_NOT_BOUND;
+        BluetoothPowerStatsCollector collector = new BluetoothPowerStatsCollector(mInjector, null);
+        collector.setEnabled(true);
+        PowerStats powerStats = collector.collectStats();
+        BluetoothPowerStatsLayout layout = new BluetoothPowerStatsLayout(powerStats.descriptor);
+        assertThat(layout.getDeviceRxTime(powerStats.stats)).isEqualTo(0);
+        assertThat(layout.getDeviceTxTime(powerStats.stats)).isEqualTo(0);
+        assertThat(layout.getDeviceIdleTime(powerStats.stats)).isEqualTo(0);
     }
 
     @Test

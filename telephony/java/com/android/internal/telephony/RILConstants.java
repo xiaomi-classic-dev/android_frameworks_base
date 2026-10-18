@@ -289,6 +289,20 @@ public interface RILConstants {
     int IMS_PHONE = 5;
     int CDMA_LTE_PHONE = 6;
 
+    int LTE_ON_CDMA_UNKNOWN = -1;
+    int LTE_ON_CDMA_FALSE = 0;
+    int LTE_ON_CDMA_TRUE = 1;
+
+    int SETUP_DATA_AUTH_NONE      = 0;
+    int SETUP_DATA_AUTH_PAP       = 1;
+    int SETUP_DATA_AUTH_CHAP      = 2;
+    int SETUP_DATA_AUTH_PAP_CHAP  = 3;
+
+    /* LCE service related constants. */
+    int LCE_NOT_AVAILABLE = -1;
+    int LCE_STOPPED = 0;
+    int LCE_ACTIVE = 1;
+
     /**
      * No restriction at all including voice/SMS/USSD/SS/AV64
      * and packet data.

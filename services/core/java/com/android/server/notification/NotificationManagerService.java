@@ -7260,7 +7260,7 @@ public class NotificationManagerService extends SystemService {
                 return;
             }
             checkNotificationListenerAccess();
-            if (granted && listener.flattenToString().getBytes().length
+            if (granted && listener.flattenToString().length()
                     > NotificationManager.MAX_SERVICE_COMPONENT_NAME_LENGTH) {
                 throw new IllegalArgumentException(
                         "Component name too long: " + listener.flattenToString());

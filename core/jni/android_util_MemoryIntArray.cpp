@@ -21,19 +21,6 @@
 
 namespace android {
 
-// Atomics should be safe to use across processes if they are lock free.
-static_assert(std::atomic_int::is_always_lock_free, "atomic_int is not always lock free");
-
-static int arraySize(int nrElms)
-{
-    return sizeof(std::atomic_int) * nrElms;
-}
-
-static int arrayNrElms(int arraySize)
-{
-    return arraySize / sizeof(std::atomic_int);
-}
-
 static jint android_util_MemoryIntArray_create(JNIEnv* env, jobject clazz, jstring name,
         jint size)
 {
@@ -48,7 +35,7 @@ static jint android_util_MemoryIntArray_create(JNIEnv* env, jobject clazz, jstri
     }
 
     const char* nameStr = env->GetStringUTFChars(name, NULL);
-    const int ashmemSize = arraySize(size);
+    const int ashmemSize = sizeof(std::atomic_int) * size;
     int fd = ashmem_create_region(nameStr, ashmemSize);
     env->ReleaseStringUTFChars(name, nameStr);
 
@@ -66,8 +53,9 @@ static jint android_util_MemoryIntArray_create(JNIEnv* env, jobject clazz, jstri
     return fd;
 }
 
-static jlong android_util_MemoryIntArray_open(JNIEnv* env, jobject clazz, jint fd, jboolean owner,
-                                              jint size) {
+static jlong android_util_MemoryIntArray_open(JNIEnv* env, jobject clazz, jint fd,
+    jboolean owner)
+{
     if (fd < 0) {
         jniThrowException(env, "java/io/IOException", "bad file descriptor");
         return -1;
@@ -78,7 +66,7 @@ static jlong android_util_MemoryIntArray_open(JNIEnv* env, jobject clazz, jint f
         return -1;
     }
 
-    int ashmemSize = arraySize(size);
+    int ashmemSize = ashmem_get_size_region(fd);
     if (ashmemSize <= 0) {
         jniThrowException(env, "java/io/IOException", "bad ashmem size");
         return -1;
@@ -108,6 +96,7 @@ static jlong android_util_MemoryIntArray_open(JNIEnv* env, jobject clazz, jint f
     }
 
     if (owner) {
+        int size = ashmemSize / sizeof(std::atomic_int);
         new (ashmemAddr) std::atomic_int[size];
     }
 
@@ -123,7 +112,7 @@ static jlong android_util_MemoryIntArray_open(JNIEnv* env, jobject clazz, jint f
 }
 
 static void android_util_MemoryIntArray_close(JNIEnv* env, jobject clazz, jint fd,
-    jlong ashmemAddr, jboolean owner, jint size)
+    jlong ashmemAddr, jboolean owner)
 {
     if (fd < 0) {
         jniThrowException(env, "java/io/IOException", "bad file descriptor");
@@ -135,7 +124,7 @@ static void android_util_MemoryIntArray_close(JNIEnv* env, jobject clazz, jint f
         return;
     }
 
-    int ashmemSize = arraySize(size);
+    int ashmemSize = ashmem_get_size_region(fd);
     if (ashmemSize <= 0) {
         jniThrowException(env, "java/io/IOException", "bad ashmem size");
         return;
@@ -217,13 +206,13 @@ static jint android_util_MemoryIntArray_size(JNIEnv* env, jobject clazz, jint fd
         jniThrowIOException(env, errno);
         return -1;
     }
-    return arrayNrElms(ashmemSize);
+    return ashmemSize / sizeof(std::atomic_int);
 }
 
 static const JNINativeMethod methods[] = {
     {"nativeCreate",  "(Ljava/lang/String;I)I", (void*)android_util_MemoryIntArray_create},
-    {"nativeOpen",  "(IZI)J", (void*)android_util_MemoryIntArray_open},
-    {"nativeClose", "(IJZI)V", (void*)android_util_MemoryIntArray_close},
+    {"nativeOpen",  "(IZ)J", (void*)android_util_MemoryIntArray_open},
+    {"nativeClose", "(IJZ)V", (void*)android_util_MemoryIntArray_close},
     {"nativeGet",  "(IJI)I", (void*)android_util_MemoryIntArray_get},
     {"nativeSet", "(IJII)V", (void*) android_util_MemoryIntArray_set},
     {"nativeSize", "(I)I", (void*) android_util_MemoryIntArray_size},

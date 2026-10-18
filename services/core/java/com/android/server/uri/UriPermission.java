@@ -26,7 +26,6 @@ import android.util.Log;
 import android.util.Slog;
 
 import com.android.internal.annotations.GuardedBy;
-import com.android.internal.annotations.VisibleForTesting;
 
 import com.google.android.collect.Sets;
 
@@ -399,8 +398,7 @@ final class UriPermission {
         final int persistedModeFlags;
         final long persistedCreateTime;
 
-        @VisibleForTesting
-        Snapshot(UriPermission perm) {
+        private Snapshot(UriPermission perm) {
             this.targetUserId = perm.targetUserId;
             this.sourcePkg = perm.sourcePkg;
             this.targetPkg = perm.targetPkg;

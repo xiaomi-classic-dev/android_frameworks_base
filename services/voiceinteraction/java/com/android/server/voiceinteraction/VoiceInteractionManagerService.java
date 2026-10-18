@@ -670,10 +670,7 @@ public class VoiceInteractionManagerService extends SystemService {
                                     | PackageManager.MATCH_DIRECT_BOOT_UNAWARE
                                     | PackageManager.GET_META_DATA,
                             userHandle);
-                    // If in safe mode, we don't parse metadata of already set recognition service
-                    // This is mainly to guard against malicious 3p apps updating their metadata
-                    // causing boot issues if the metadata loading is causing OOM
-                    if (recognizerInfo != null && !mSafeMode) {
+                    if (recognizerInfo != null) {
                         RecognitionServiceInfo rsi =
                                 RecognitionServiceInfo.parseInfo(
                                         mContext.getPackageManager(), recognizerInfo);
@@ -940,7 +937,7 @@ public class VoiceInteractionManagerService extends SystemService {
             }
 
             List<RecognitionServiceInfo> available =
-                    RecognitionServiceInfo.getAvailableServices(mContext, userHandle, mSafeMode);
+                    RecognitionServiceInfo.getAvailableServices(mContext, userHandle);
             if (available.size() == 0) {
                 Slog.w(TAG, "no available voice recognition services found for user " + userHandle);
                 return null;

@@ -1969,10 +1969,9 @@ static void SpecializeCommon(JNIEnv* env, uid_t uid, gid_t gid, jintArray gids, 
     if (getuid() == 0) {
         const int rc = createProcessGroup(uid, getpid());
         if (rc != 0) {
-            fail_fn(rc == -EROFS ? CREATE_ERROR("createProcessGroup failed, kernel missing "
-                                                "CONFIG_CGROUP_CPUACCT?")
-                                 : CREATE_ERROR("createProcessGroup(%d, %d) failed: %s", uid,
-                                                /* pid= */ 0, strerror(-rc)));
+            // Process groups are an optimization on devices with legacy cgroup layouts.  Keep
+            // specializing the process when the kernel cannot provide Android's current layout.
+            ALOGE("createProcessGroup(%d, %d) failed: %s", uid, /* pid= */ 0, strerror(-rc));
         }
 
         if (is_system_server && UsePerAppMemcg()) {

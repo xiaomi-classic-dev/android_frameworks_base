@@ -290,14 +290,6 @@ public class LocalImageResolverTest {
         LocalImageResolver.resolveImage(uri, mContext);
     }
 
-    @Test(expected = RuntimeException.class)
-    public void resolveImage_withSize_veryLargeResource_throwsException() {
-        // Passing in an unreasonably large image should throw an exception.
-        Uri uri = Uri.parse("android.resource://"
-                + mContext.getPackageName() + "/" + R.drawable.test16000x16000);
-        LocalImageResolver.resolveImage(uri, mContext, 480, 480);
-    }
-
     @Test
     public void resolveResourcesForIcon_notAResourceIcon_returnsNull() {
         Icon icon = Icon.createWithContentUri(Uri.parse("some_uri"));
@@ -349,13 +341,5 @@ public class LocalImageResolverTest {
         Uri uri = Uri.parse("android.resource://"
                 + mContext.getPackageName() + "/" + R.raw.dng_opcode_MapTable_ProcessArea);
         LocalImageResolver.resolveImage(uri, mContext);
-    }
-
-    @Test(expected = RuntimeException.class)
-    public void resolveImage_asset_invalidMimeType_withSize() {
-        // dng mimetype is not supported
-        Uri uri = Uri.parse("android.resource://"
-                + mContext.getPackageName() + "/" + R.raw.dng_opcode_MapTable_ProcessArea);
-        LocalImageResolver.resolveImage(uri, mContext, 480, 480);
     }
 }

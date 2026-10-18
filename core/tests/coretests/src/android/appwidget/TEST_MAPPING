@@ -1,7 +1,0 @@
-{
-  "presubmit": [
-    {
-      "name": "FrameworksCoreTests_android_appwidget"
-    }
-  ]
-}

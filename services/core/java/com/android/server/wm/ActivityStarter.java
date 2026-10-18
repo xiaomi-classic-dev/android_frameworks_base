@@ -591,6 +591,21 @@ class ActivityStarter {
                 intent.setComponent(null /* component */);
             }
 
+            resolveInfo = supervisor.resolveIntent(intent, resolvedType, userId,
+                    0 /* matchFlags */,
+                    computeResolveFilterUid(callingUid, realCallingUid, filterCallingUid),
+                    realCallingPid);
+            if (resolveInfo == null) {
+                // Special case for profiles: If attempting to launch non-crypto aware app in a
+                // locked profile or launch an app in a profile that is stopped by quiet mode from
+                // an unlocked parent, allow it to resolve as user will be sent via confirm
+                // credentials to unlock the profile.
+                resolveInfo = resolveIntentForLockedOrStoppedProfiles(supervisor);
+            }
+
+            // Collect information about the target of the Intent.
+            activityInfo = supervisor.resolveActivity(intent, resolveInfo, startFlags,
+                    profilerInfo);
             // Check if the Intent was redirected
             if ((intent.getExtendedFlags() & Intent.EXTENDED_FLAG_MISSING_CREATOR_OR_INVALID_TOKEN)
                     != 0) {
@@ -607,22 +622,6 @@ class ActivityStarter {
                 }
                 // leave intentCreatorUid as -1 if the intent creator is the same as the launcher
             }
-
-            resolveInfo = supervisor.resolveIntent(intent, resolvedType, userId,
-                    0 /* matchFlags */,
-                    computeResolveFilterUid(callingUid, realCallingUid, filterCallingUid),
-                    realCallingPid);
-            if (resolveInfo == null) {
-                // Special case for profiles: If attempting to launch non-crypto aware app in a
-                // locked profile or launch an app in a profile that is stopped by quiet mode from
-                // an unlocked parent, allow it to resolve as user will be sent via confirm
-                // credentials to unlock the profile.
-                resolveInfo = resolveIntentForLockedOrStoppedProfiles(supervisor);
-            }
-
-            // Collect information about the target of the Intent.
-            activityInfo = supervisor.resolveActivity(intent, resolveInfo, startFlags,
-                    profilerInfo);
             // Carefully collect grants without holding lock
             if (activityInfo != null) {
                 if (android.security.Flags.contentUriPermissionApis()) {
@@ -640,11 +639,10 @@ class ActivityStarter {
                                             UserHandle.getUserId(activityInfo.applicationInfo.uid),
                                             activityInfo.requireContentUriPermissionFromCaller,
                                             /* requestHashCode */ this.hashCode());
-                            // Only both calling UID and creator UID has permission to grant uri,
-                            // then we grant uri permission to intentGrants. Otherwise, we clear
-                            // intentGrants.
-                            if (intentGrants == null || creatorIntentGrants == null) {
-                                intentGrants = null;
+                            if (intentGrants == null) {
+                                intentGrants = creatorIntentGrants;
+                            } else {
+                                intentGrants.merge(creatorIntentGrants);
                             }
                         } catch (SecurityException securityException) {
                             logAndThrowExceptionForIntentRedirect(supervisor.mService.mContext,
@@ -665,11 +663,10 @@ class ActivityStarter {
                                             activityInfo.applicationInfo.packageName,
                                             UserHandle.getUserId(
                                                     activityInfo.applicationInfo.uid));
-                            // Only both calling UID and creator UID has permission to grant uri,
-                            // then we grant uri permission to intentGrants. Otherwise, we clear
-                            // intentGrants.
-                            if (intentGrants == null || creatorIntentGrants == null) {
-                                intentGrants = null;
+                            if (intentGrants == null) {
+                                intentGrants = creatorIntentGrants;
+                            } else {
+                                intentGrants.merge(creatorIntentGrants);
                             }
                         } catch (SecurityException securityException) {
                             logAndThrowExceptionForIntentRedirect(supervisor.mService.mContext,
@@ -1491,13 +1488,6 @@ class ActivityStarter {
                 .setActivityOptions(checkedOptions)
                 .setSourceRecord(sourceRecord)
                 .build();
-
-        // Reset the launch-behind flag to avoid making it visible if the activity launch should
-        // be blocked.
-        if (r.mLaunchTaskBehind && balVerdict.blocks()) {
-            Slog.w(TAG, "Disallowed launching behind for a background launch");
-            r.mLaunchTaskBehind = false;
-        }
 
         mLastStartActivityRecord = r;
 
@@ -3753,7 +3743,7 @@ class ActivityStarter {
         }
     }
 
-    static boolean logAndAbortForIntentRedirect(@NonNull Context context,
+    private static boolean logAndAbortForIntentRedirect(@NonNull Context context,
             @IntentRedirectErrorCode int errorCode, @NonNull Intent intent, int intentCreatorUid,
             @Nullable String intentCreatorPackage, int callingUid,
             @Nullable String callingPackage) {

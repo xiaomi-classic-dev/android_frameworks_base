@@ -1030,7 +1030,7 @@ public class NotificationStackScrollLayout
             return;
         }
 
-        if (mShouldUseSplitNotificationShade || !mSkinnyNotifsInLandscape) {
+        if (mShouldUseSplitNotificationShade) {
             if (mSkinnyNotifsInLandscape) {
                 Log.e(TAG, "updateSidePadding: mSkinnyNotifsInLandscape has betrayed us!");
             }
